@@ -7,6 +7,7 @@ const App = () => {
   const [answers, setAnswers] = useState({});
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const TMDB_API_KEY = '08a0e075f85065da7cb1f6b6fc95f8c3';
   const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -158,6 +159,7 @@ const App = () => {
     setCurrentQuestion(0);
     setAnswers({});
     setRecommendations([]);
+    setCurrentPage(1);
   };
 
   const handleAnswerSelect = (questionId, optionKey) => {
@@ -182,7 +184,7 @@ const App = () => {
     }
   };
 
-  const fetchRecommendationsFromAnswers = async (answersData) => {
+  const fetchRecommendationsFromAnswers = async (answersData, page = 1) => {
     setLoading(true);
     try {
       const { genres, sort_by, vote_average_gte } = getGenresAndFilters(answersData);
@@ -195,17 +197,23 @@ const App = () => {
           with_genres: genres.join(','),
           'vote_average.gte': vote_average_gte,
           sort_by: sort_by,
-          page: 1
+          page: page
         }
       });
 
       setRecommendations(response.data.results.slice(0, 5));
+      setCurrentPage(page);
       setCurrentStep('results');
     } catch (error) {
       console.error('Chyba při načítání doporučení:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const regenerateRecommendations = () => {
+    const nextPage = currentPage + 1;
+    fetchRecommendationsFromAnswers(answers, nextPage);
   };
 
   const getWebshareLink = (title) => {
@@ -324,9 +332,78 @@ const App = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-400 via-cyan-500 to-blue-500 py-8 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-8">
+        <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-white mb-4">🎊 Tvoje filmové poklady! 🎊</h2>
             <p className="text-xl text-white opacity-90">Vybrala jsem pro tebe {moodLabel} filmy na základě tvých odpovědí</p>
+          </div>
+
+          {/* Quick Parameter Editing */}
+          <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 mb-8">
+            <h3 className="text-2xl font-bold text-white mb-4 text-center">⚙️ Rychlé úpravy</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Mood Selection */}
+              <div>
+                <label className="block text-white font-semibold mb-2">Nálada:</label>
+                <select 
+                  value={answers.mood || ''}
+                  onChange={(e) => {
+                    const newAnswers = { ...answers, mood: e.target.value };
+                    setAnswers(newAnswers);
+                    setCurrentPage(1);
+                    fetchRecommendationsFromAnswers(newAnswers, 1);
+                  }}
+                  className="w-full p-3 rounded-lg bg-white text-gray-800 font-medium shadow-lg"
+                >
+                  <option value="happy">😊 Veselá</option>
+                  <option value="adventurous">🎢 Dobrodružná</option>
+                  <option value="romantic">💕 Romantická</option>
+                  <option value="thoughtful">🤔 Zamyšlená</option>
+                  <option value="nostalgic">🌅 Nostalgická</option>
+                </select>
+              </div>
+
+              {/* Setting Selection */}
+              <div>
+                <label className="block text-white font-semibold mb-2">Prostředí:</label>
+                <select 
+                  value={answers.setting || ''}
+                  onChange={(e) => {
+                    const newAnswers = { ...answers, setting: e.target.value };
+                    setAnswers(newAnswers);
+                    setCurrentPage(1);
+                    fetchRecommendationsFromAnswers(newAnswers, 1);
+                  }}
+                  className="w-full p-3 rounded-lg bg-white text-gray-800 font-medium shadow-lg"
+                >
+                  <option value="historical">🏰 Historické</option>
+                  <option value="modern">🏙️ Současné</option>
+                  <option value="nature">🌲 Příroda</option>
+                  <option value="fantasy">🧙‍♀️ Fantasy</option>
+                  <option value="foreign">🗺️ Cizí země</option>
+                </select>
+              </div>
+
+              {/* Protagonist Selection */}
+              <div>
+                <label className="block text-white font-semibold mb-2">Protagonista:</label>
+                <select 
+                  value={answers.protagonist || ''}
+                  onChange={(e) => {
+                    const newAnswers = { ...answers, protagonist: e.target.value };
+                    setAnswers(newAnswers);
+                    setCurrentPage(1);
+                    fetchRecommendationsFromAnswers(newAnswers, 1);
+                  }}
+                  className="w-full p-3 rounded-lg bg-white text-gray-800 font-medium shadow-lg"
+                >
+                  <option value="strong_woman">💪 Silná žena</option>
+                  <option value="family_person">👩‍👧‍👦 Rodinný typ</option>
+                  <option value="detective">🔍 Detektiv</option>
+                  <option value="artist">🎨 Umělec</option>
+                  <option value="ordinary">🌟 Obyčejný člověk</option>
+                </select>
+              </div>
+            </div>
           </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -384,10 +461,16 @@ const App = () => {
           })}
         </div>
         
-        <div className="text-center">
+        <div className="text-center space-x-4">
+          <button 
+            onClick={regenerateRecommendations}
+            className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-bold py-4 px-8 rounded-full text-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
+          >
+            🎲 Generovat další filmy
+          </button>
           <button 
             onClick={resetQuiz}
-            className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-4 px-8 rounded-full text-xl transition-all duration-300 transform hover:scale-105 shadow-lg mr-4"
+            className="bg-white hover:bg-gray-100 text-gray-800 font-bold py-4 px-8 rounded-full text-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
             🔄 Hrát znovu
           </button>
